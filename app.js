@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const authRoutes = require('./routers/AuthRoutes');
 
+// Kiểm tra private key
+console.log(process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'));  // Thêm dòng này để kiểm tra
+
 const app = express();
 
 // Middleware để parse JSON
