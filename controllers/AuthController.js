@@ -1,6 +1,9 @@
 const { admin } = require('../config/FireBaseConfig');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+console.log(process.env.FIREBASE_PRIVATE_KEY);
+console.log(process.env.FIREBASE_CLIENT_EMAIL);
+console.log(process.env.FIREBASE_PROJECT_ID);
 
 // Đăng ký người dùng mới
 exports.register = async (req, res) => {
