@@ -2,7 +2,10 @@ const express = require('express');
 const authRoutes = require('./routers/AuthRoutes'); // Import file routes cho auth
 const courseRoutes = require('./routers/CourseRoutes'); // Import file routes cho courses
 require('dotenv').config();
+const cors = require('cors');
 
+
+app.use(cors());
 const app = express();
 
 // Middleware để parse JSON
