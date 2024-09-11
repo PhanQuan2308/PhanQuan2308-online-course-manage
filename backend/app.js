@@ -8,7 +8,7 @@ const app = express(); // Đã khai báo app ở đây
 
 // Cấu hình CORS, đảm bảo frontend (ví dụ localhost:3000) có quyền truy cập vào backend
 app.use(cors({
-  origin: '*', // Chấp nhận tất cả nguồn (hoặc có thể cụ thể hóa địa chỉ frontend)
+  origin: 'http://localhost:3000', // Chấp nhận tất cả nguồn (hoặc có thể cụ thể hóa địa chỉ frontend)
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'], // Cho phép các headers cần thiết
   credentials: true
