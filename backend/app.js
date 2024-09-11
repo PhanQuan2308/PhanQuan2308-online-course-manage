@@ -13,6 +13,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'], // Cho phép các headers cần thiết
   credentials: true
 }));
+app.options('*', cors());
 
 
 // Middleware để parse JSON
