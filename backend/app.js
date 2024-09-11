@@ -6,7 +6,14 @@ const cors = require('cors');
 
 const app = express(); // Đã khai báo app ở đây
 
-app.use(cors()); // Đặt sau khi khởi tạo app
+// Cấu hình CORS, đảm bảo frontend (ví dụ localhost:3000) có quyền truy cập vào backend
+app.use(cors({
+  origin: '*', // Chấp nhận tất cả nguồn (hoặc có thể cụ thể hóa địa chỉ frontend)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'], // Cho phép các headers cần thiết
+  credentials: true
+}));
+
 
 // Middleware để parse JSON
 app.use(express.json());

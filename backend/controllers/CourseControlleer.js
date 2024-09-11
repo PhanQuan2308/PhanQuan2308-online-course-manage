@@ -1,21 +1,49 @@
-const { firestore, admin } = require('../config/firebase');
+const { firestore, admin } = require("../config/firebase");
 
 // Tạo khóa học - chỉ Admin
-exports.createCourse = async (req, res) => {
-  const { title, description } = req.body;
+exports.getCourses = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
   try {
-    const courseRef = firestore.collection("courses").doc();
-    await courseRef.set({
-      title,
-      description,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      adminId: req.user.uid, // ID admin từ JWT
-    });
-    res.status(201).json({ message: "Khóa học đã được tạo" });
+    const coursesRef = firestore
+      .collection("courses")
+      .orderBy("createdAt")
+      .limit(parseInt(limit))
+      .offset((page - 1) * limit);
+    const snapshot = await coursesRef.get();
+    const courses = [];
+
+    for (const doc of snapshot.docs) {
+      const course = { id: doc.id, ...doc.data() };
+
+      // Lấy danh sách bài giảng theo courseId
+      const lecturesRef = firestore
+        .collection("lectures")
+        .where("courseId", "==", doc.id);
+      const lecturesSnapshot = await lecturesRef.get();
+
+      if (!lecturesSnapshot.empty) {
+        const lectures = lecturesSnapshot.docs.map((lecture) => ({
+          id: lecture.id,
+          ...lecture.data(),
+        }));
+
+        // Thêm bài giảng vào khóa học nếu có
+        course.lectures = lectures;
+      } else {
+        // Nếu không có bài giảng thì set lectures là một mảng trống
+        course.lectures = [];
+      }
+      
+      courses.push(course);
+    }
+
+    res.status(200).json(courses);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi khi tạo khóa học", error });
+    res.status(500).json({ message: "Lỗi khi lấy danh sách khóa học và bài giảng", error });
   }
 };
+
+
 
 // Cập nhật khóa học - chỉ Admin
 exports.updateCourse = async (req, res) => {
@@ -116,54 +144,108 @@ exports.getCourseDetails = async (req, res) => {
 
 // Thêm bài giảng vào khóa học - Chỉ Admin
 exports.addLecture = async (req, res) => {
-    const { id } = req.params;
-    const { title, content } = req.body;
-    try {
-      // Kiểm tra xem khóa học có tồn tại không
-      const courseRef = firestore.collection('courses').doc(id);
-      const courseDoc = await courseRef.get();
-  
-      if (!courseDoc.exists) {
-        return res.status(404).json({ message: 'Khóa học không tồn tại' });
-      }
-  
-      // Nếu tồn tại, tạo bài giảng mới
-      const lectureRef = firestore.collection('lectures').doc();
-      await lectureRef.set({
-        courseId: id,
-        title,
-        content,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      res.status(201).json({ message: 'Bài giảng đã được thêm' });
-    } catch (error) {
-      res.status(500).json({ message: 'Lỗi khi thêm bài giảng', error });
+  const { id } = req.params;
+  const { title, content } = req.body;
+  try {
+    // Kiểm tra xem khóa học có tồn tại không
+    const courseRef = firestore.collection("courses").doc(id);
+    const courseDoc = await courseRef.get();
+
+    if (!courseDoc.exists) {
+      return res.status(404).json({ message: "Khóa học không tồn tại" });
     }
-  };
-  
+
+    // Nếu tồn tại, tạo bài giảng mới
+    const lectureRef = firestore.collection("lectures").doc();
+    await lectureRef.set({
+      courseId: id,
+      title,
+      content,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.status(201).json({ message: "Bài giảng đã được thêm" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi khi thêm bài giảng", error });
+  }
+};
 
 // Lấy danh sách bài giảng của khóa học - Người dùng đã đăng ký
 // Lấy danh sách khóa học - Người dùng có thể xem
 exports.getCourses = async (req, res) => {
-    const { page = 1, limit = 10, lastCourseId = null } = req.query;
-    try {
-      let query = firestore.collection("courses").orderBy("createdAt").limit(parseInt(limit));
-  
-      // Nếu có lastCourseId, sử dụng để thực hiện pagination
-      if (lastCourseId) {
-        const lastCourseRef = firestore.collection("courses").doc(lastCourseId);
-        const lastCourseSnapshot = await lastCourseRef.get();
-        if (lastCourseSnapshot.exists) {
-          query = query.startAfter(lastCourseSnapshot);
-        }
+  const { page = 1, limit = 10, lastCourseId = null } = req.query;
+  try {
+    let query = firestore
+      .collection("courses")
+      .orderBy("createdAt")
+      .limit(parseInt(limit));
+
+    // Nếu có lastCourseId, sử dụng để thực hiện pagination
+    if (lastCourseId) {
+      const lastCourseRef = firestore.collection("courses").doc(lastCourseId);
+      const lastCourseSnapshot = await lastCourseRef.get();
+      if (lastCourseSnapshot.exists) {
+        query = query.startAfter(lastCourseSnapshot);
       }
-  
-      const snapshot = await query.get();
-      const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  
-      res.status(200).json(courses);
-    } catch (error) {
-      res.status(500).json({ message: "Lỗi khi lấy danh sách khóa học", error });
     }
-  };
-  
+
+    const snapshot = await query.get();
+    const courses = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    res.status(200).json(courses);
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi khi lấy danh sách khóa học", error });
+  }
+};
+
+// PUT /api/courses/:courseId/lectures/:lectureId (Chỉ admin có thể sửa bài giảng)
+exports.updateLecture = async (req, res) => {
+  const { courseId, lectureId } = req.params;
+  const { title, content } = req.body;
+
+  try {
+    // Kiểm tra xem bài giảng có tồn tại không
+    const lectureRef = firestore.collection("lectures").doc(lectureId);
+    const lectureDoc = await lectureRef.get();
+
+    if (!lectureDoc.exists) {
+      return res.status(404).json({ message: "Bài giảng không tồn tại" });
+    }
+
+    // Cập nhật bài giảng
+    await lectureRef.update({
+      title,
+      content,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.status(200).json({ message: "Bài giảng đã được cập nhật" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi khi cập nhật bài giảng", error });
+  }
+};
+
+
+// DELETE /api/courses/:courseId/lectures/:lectureId (Chỉ admin có thể xóa bài giảng)
+exports.deleteLecture = async (req, res) => {
+  const { courseId, lectureId } = req.params;
+
+  try {
+    // Kiểm tra xem bài giảng có tồn tại không
+    const lectureRef = firestore.collection("lectures").doc(lectureId);
+    const lectureDoc = await lectureRef.get();
+
+    if (!lectureDoc.exists) {
+      return res.status(404).json({ message: "Bài giảng không tồn tại" });
+    }
+
+    // Xóa bài giảng
+    await lectureRef.delete();
+
+    res.status(200).json({ message: "Bài giảng đã được xóa" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi khi xóa bài giảng", error });
+  }
+};
+
+
+// Lấy danh sách khóa học kèm theo bài giảng
