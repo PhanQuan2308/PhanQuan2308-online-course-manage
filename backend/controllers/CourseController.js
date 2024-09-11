@@ -1,10 +1,41 @@
 const { admin, firestore } = require("../config/FireBaseConfig");
+const nodemailer = require("nodemailer");
 
-// Tạo khóa học mới - Chỉ Admin có quyền
+// Cấu hình gửi email bằng Nodemailer
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USERNAME,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
+// Hàm gửi email thông báo
+async function sendNotificationEmail(email, courseTitle) {
+  const mailOptions = {
+    from: process.env.EMAIL_USERNAME,
+    to: email,
+    subject: "Thông báo khóa học mới",
+    text: `Khóa học mới "${courseTitle}" đã được thêm vào. Hãy kiểm tra ngay!`,
+  };
+
+  console.log('Đang gửi email tới:', email); // Log email được gửi đến
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Email đã được gửi tới ${email}`); // Log khi email được gửi thành công
+  } catch (error) {
+    console.error("Lỗi khi gửi email:", error.message); // Log lỗi cụ thể
+    console.error(error.stack); // Log toàn bộ lỗi để kiểm tra thêm
+  }
+}
+
+// Hàm tạo khóa học mới và gửi email thông báo
 exports.createCourse = async (req, res) => {
   const { title, description } = req.body;
-  
+
+  console.log('Bắt đầu tạo khóa học mới...'); // Log khi bắt đầu tạo khóa học
   try {
+    // Thêm khóa học mới vào Firestore
     const courseRef = firestore.collection("courses").doc();
     await courseRef.set({
       title,
@@ -12,22 +43,42 @@ exports.createCourse = async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    res.status(201).json({ message: "Khóa học đã được tạo thành công" });
+    console.log('Khóa học đã được tạo:', title); // Log khi khóa học được tạo thành công
+
+    // Lấy tất cả người dùng từ Firestore
+    const usersSnapshot = await firestore.collection("users").get();
+    const users = usersSnapshot.docs.map((doc) => doc.data());
+
+    console.log('Danh sách người dùng:', users); // Log danh sách người dùng sau khi lấy từ Firestore
+
+    // Gửi email thông báo cho từng người dùng
+    for (const user of users) {
+      if (user.email) {
+        console.log("Gửi email tới:", user.email); // Thêm log này để kiểm tra
+        await sendNotificationEmail(user.email, title);
+      } else {
+        console.log("Người dùng không có email:", user); // Log nếu người dùng không có email
+      }
+    }
+
+    res.status(201).json({
+      message: "Khóa học đã được tạo thành công và email đã được gửi!",
+    });
   } catch (error) {
-    res.status(500).json({ message: "Lỗi khi tạo khóa học", error });
+    console.error("Lỗi khi tạo khóa học hoặc gửi email:", error.message); // Log lỗi khi tạo khóa học hoặc gửi email
+    res.status(500).json({ message: "Lỗi khi tạo khóa học hoặc gửi email", error });
   }
 };
 
 // Lấy danh sách khóa học (cả người dùng và admin đều có thể truy cập)
-
 
 exports.getCourses = async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
 
   try {
     const coursesRef = firestore
-      .collection('courses')
-      .orderBy('createdAt')
+      .collection("courses")
+      .orderBy("createdAt")
       .limit(parseInt(limit));
 
     const snapshot = await coursesRef.get();
@@ -37,9 +88,11 @@ exports.getCourses = async (req, res) => {
       const courseData = { id: doc.id, ...doc.data() };
 
       // Fetch lectures for each course
-      const lecturesRef = firestore.collection('lectures').where('courseId', '==', doc.id);
+      const lecturesRef = firestore
+        .collection("lectures")
+        .where("courseId", "==", doc.id);
       const lecturesSnapshot = await lecturesRef.get();
-      const lectures = lecturesSnapshot.docs.map(lectureDoc => ({
+      const lectures = lecturesSnapshot.docs.map((lectureDoc) => ({
         id: lectureDoc.id,
         ...lectureDoc.data(),
       }));
@@ -50,7 +103,7 @@ exports.getCourses = async (req, res) => {
 
     res.status(200).json(courses);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi lấy danh sách khóa học', error });
+    res.status(500).json({ message: "Lỗi khi lấy danh sách khóa học", error });
   }
 };
 
@@ -81,7 +134,7 @@ exports.updateCourse = async (req, res) => {
 };
 // Tìm kiếm khóa học theo tiêu đề
 exports.searchCourses = async (req, res) => {
-  const { search } = req.query;  // Lấy từ khóa tìm kiếm từ query params
+  const { search } = req.query; // Lấy từ khóa tìm kiếm từ query params
   try {
     const coursesRef = firestore
       .collection("courses")
@@ -219,7 +272,9 @@ exports.getRegisteredCourses = async (req, res) => {
 
     res.status(200).json(registeredCourses);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi khi lấy danh sách khóa học đã đăng ký", error });
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy danh sách khóa học đã đăng ký", error });
   }
 };
 

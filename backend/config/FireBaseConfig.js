@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 require('dotenv').config(); // Load các biến môi trường từ file .env
 
+
 try {
   admin.initializeApp({
     credential: admin.credential.cert({

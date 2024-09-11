@@ -9,17 +9,35 @@ console.log(process.env.FIREBASE_PROJECT_ID);
 exports.register = async (req, res) => {
   const { email, password, role } = req.body;
   try {
+    // Kiểm tra xem email đã tồn tại chưa
+    const userRecord = await admin.auth().getUserByEmail(email);
+    if (userRecord) {
+      return res.status(400).json({ message: 'Email đã tồn tại. Vui lòng chọn email khác.' });
+    }
+  } catch (error) {
+    // Nếu lỗi không phải do email đã tồn tại thì xử lý tiếp
+    if (error.code !== 'auth/user-not-found') {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  try {
     // Firebase yêu cầu mật khẩu dạng plain text
-    const userRecord = await admin.auth().createUser({ email, password });
-    
-    // Lưu role vào Firestore (nếu cần lưu)
-    await admin.firestore().collection('users').doc(userRecord.uid).set({ role });
+    const newUserRecord = await admin.auth().createUser({ email, password });
+
+    // Lưu email và role vào Firestore
+    await admin.firestore().collection('users').doc(newUserRecord.uid).set({ 
+      email,  // Thêm email vào Firestore
+      role 
+    });
     
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
+
 
 // Đăng nhập và phát hành JWT
 exports.login = async (req, res) => {
