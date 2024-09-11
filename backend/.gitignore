@@ -1,0 +1,7 @@
+# Node modules - Thư mục này chứa các package được cài qua npm/yarn
+node_modules/
+
+# File chứa thông tin môi trường - không nên đẩy lên để bảo mật thông tin
+.env
+
+/frontend/
