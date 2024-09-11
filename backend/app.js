@@ -4,9 +4,9 @@ const courseRoutes = require('./routers/CourseRoutes'); // Import file routes ch
 require('dotenv').config();
 const cors = require('cors');
 
+const app = express(); // Đã khai báo app ở đây
 
-app.use(cors());
-const app = express();
+app.use(cors()); // Đặt sau khi khởi tạo app
 
 // Middleware để parse JSON
 app.use(express.json());
